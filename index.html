@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f7f4" />
+    <title>評量作答紀錄</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172b28;
+        --muted: #667672;
+        --line: #dce5df;
+        --paper: #fff;
+        --canvas: #f6f7f4;
+        --green: #155d4d;
+        --green-soft: #e7f3ed;
+        --red: #a94336;
+        --red-soft: #f9ece9;
+        --shadow: 0 12px 32px rgba(30, 60, 48, .07);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+        font-size: 16px;
+      }
+      button, select, input { font: inherit; }
+      .page { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
+      .topline { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:34px; }
+      .brand { display:flex; align-items:center; gap:11px; font-size:14px; font-weight:700; letter-spacing:.04em; }
+      .brand-mark { display:grid; place-items:center; width:38px; height:38px; border-radius:13px; background:var(--green); color:#fff; font-size:19px; }
+      .draft-pill { color:var(--muted); border:1px solid var(--line); border-radius:999px; background:#fff; padding:8px 12px; font-size:12px; white-space:nowrap; }
+      .hero { margin-bottom:26px; }
+      .eyebrow { margin:0 0 10px; color:var(--green); font-size:12px; font-weight:800; letter-spacing:.13em; }
+      h1 { margin:0; font-size:clamp(28px, 5vw, 40px); line-height:1.2; letter-spacing:-.04em; }
+      .intro { margin:12px 0 0; color:var(--muted); line-height:1.7; }
+      .steps { display:flex; gap:8px; margin:24px 0 22px; overflow-x:auto; }
+      .step { display:flex; align-items:center; gap:9px; min-width:max-content; padding:9px 13px; border:1px solid var(--line); border-radius:999px; color:var(--muted); background:#fff; font-size:13px; }
+      .step b { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:#eef1ee; font-size:12px; }
+      .step.active { color:var(--green); border-color:#9cc6b2; background:var(--green-soft); font-weight:700; }
+      .step.active b { color:white; background:var(--green); }
+      .card { margin-top:16px; padding:clamp(18px, 4vw, 28px); border:1px solid var(--line); border-radius:20px; background:var(--paper); box-shadow:var(--shadow); }
+      .card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
+      .card h2 { margin:0; font-size:20px; letter-spacing:-.02em; }
+      .subtext { margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.6; }
+      .count { color:var(--muted); font-size:13px; white-space:nowrap; }
+      .search { width:100%; max-width:350px; padding:11px 14px; border:1px solid var(--line); border-radius:11px; outline:none; background:#fbfcfa; }
+      .search:focus, select:focus, button:focus-visible { outline:3px solid #a8d3bd; outline-offset:2px; }
+      .student-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+      .student-option { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:62px; padding:12px 14px; text-align:left; border:1px solid var(--line); border-radius:13px; color:var(--ink); background:#fff; cursor:pointer; transition:border-color .15s, background .15s, transform .15s; }
+      .student-option:hover { border-color:#8ab6a2; transform:translateY(-1px); }
+      .student-option.selected { border-color:var(--green); background:var(--green-soft); box-shadow:inset 0 0 0 1px var(--green); }
+      .student-class { display:block; color:var(--muted); font-size:11px; }
+      .student-seat { display:block; margin-top:3px; font-weight:750; }
+      .check { color:var(--green); font-size:18px; }
+      .select-wrap { position:relative; max-width:420px; }
+      select { width:100%; padding:14px 44px 14px 15px; appearance:none; border:1px solid var(--line); border-radius:12px; background:#fbfcfa; color:var(--ink); }
+      .select-wrap::after { content:"⌄"; position:absolute; right:16px; top:10px; font-size:20px; color:var(--muted); pointer-events:none; }
+      .selected-summary { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; padding:14px 16px; border-radius:13px; background:#f3f6f3; }
+      .summary-label { color:var(--muted); font-size:12px; }
+      .summary-value { margin-top:4px; font-weight:750; }
+      .change-link { border:0; color:var(--green); background:none; font-weight:700; cursor:pointer; }
+      .progress { display:flex; align-items:center; gap:12px; margin:0 0 20px; }
+      .progress-track { flex:1; height:7px; overflow:hidden; border-radius:20px; background:#edf1ed; }
+      .progress-fill { width:0; height:100%; border-radius:20px; background:var(--green); transition:width .2s; }
+      .progress-copy { color:var(--muted); font-size:13px; white-space:nowrap; }
+      .question-block { margin-top:22px; }
+      .question-block h3 { display:flex; align-items:center; gap:9px; margin:0 0 11px; font-size:14px; }
+      .question-block h3::before { content:""; width:4px; height:17px; border-radius:4px; background:#8db8a2; }
+      .question-scroll { overflow-x:auto; padding:2px 2px 8px; }
+      .question-row { display:grid; grid-template-columns:repeat(10,minmax(44px,1fr)); gap:8px; min-width:512px; }
+      .question { min-height:64px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:1px solid #bad7c7; border-radius:12px; color:var(--green); background:var(--green-soft); cursor:pointer; transition:transform .12s, background .15s, border-color .15s; }
+      .question:hover { transform:translateY(-2px); }
+      .question.wrong { color:var(--red); border-color:#e8bbb4; background:var(--red-soft); }
+      .question .number { color:var(--muted); font-size:10px; }
+      .question .value { font-size:21px; line-height:1; font-weight:800; }
+      .empty { grid-column:1/-1; padding:25px 12px; border:1px dashed var(--line); border-radius:12px; color:var(--muted); text-align:center; }
+      .notice { margin:18px 0 0; padding:12px 14px; border-radius:11px; color:#52645d; background:#f0f4f0; font-size:12px; line-height:1.65; }
+      .error { color:#963c32; background:#fff0ed; }
+      .hidden { display:none !important; }
+      .footer { padding:22px 4px 0; color:#87938d; font-size:11px; line-height:1.6; text-align:center; }
+      @media (max-width:580px) {
+        .page { width:min(100% - 24px, 980px); padding-top:20px; }
+        .topline { margin-bottom:27px; }
+        .student-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .card-head { flex-direction:column; }
+        .search { max-width:none; }
+        .question-row { gap:6px; }
+        .question { min-height:60px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="topline">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">答</span><span>學習評量</span></div>
+        <span class="draft-pill">作答尚未送出</span>
+      </div>
+      <header class="hero">
+        <p class="eyebrow">ASSESSMENT · RESPONSE</p>
+        <h1>評量作答紀錄</h1>
+        <p class="intro">先選擇班級座號與評量卷，再逐題標記作答結果。</p>
+      </header>
+      <nav class="steps" aria-label="作答步驟">
+        <span class="step active" id="step-1"><b>1</b>選擇學生</span>
+        <span class="step" id="step-2"><b>2</b>選擇卷號</span>
+        <span class="step" id="step-3"><b>3</b>標記答案</span>
+      </nav>
+      <section class="card" id="student-card" aria-labelledby="student-title">
+        <div class="card-head">
+          <div><h2 id="student-title">你是誰？</h2><p class="subtext">請選擇自己的班級與座號。</p></div>
+          <span class="count" id="student-count">載入名單中…</span>
+        </div>
+        <input class="search" id="student-search" type="search" placeholder="搜尋班級或座號" aria-label="搜尋班級或座號" />
+        <div class="student-list" id="student-list" style="margin-top:14px"></div>
+        <p class="notice hidden" id="student-message" role="status"></p>
+      </section>
+      <section class="card hidden" id="quiz-card" aria-labelledby="quiz-title">
+        <div class="selected-summary">
+          <div><div class="summary-label">目前學生</div><div class="summary-value" id="chosen-student"></div></div>
+          <button class="change-link" id="change-student" type="button">更改</button>
+        </div>
+        <div class="card-head">
+          <div><h2 id="quiz-title">選擇評量卷</h2><p class="subtext">選擇卷號後會自動列出該卷的題目。</p></div>
+          <span class="count" id="quiz-count">載入卷號中…</span>
+        </div>
+        <div class="select-wrap"><select id="quiz-select" aria-label="選擇卷號"><option value="">請選擇卷號</option></select></div>
+        <p class="notice hidden" id="quiz-message" role="status"></p>
+      </section>
+      <section class="card hidden" id="answers-card" aria-labelledby="answers-title">
+        <div class="card-head">
+          <div><h2 id="answers-title">逐題標記</h2><p class="subtext">每題預設為答對（1）；點一下即可切換為答錯（0）。每列 10 題。</p></div>
+          <span class="count" id="answer-count"></span>
+        </div>
+        <div class="selected-summary">
+          <div><div class="summary-label">學生 / 卷號</div><div class="summary-value" id="answer-context"></div></div>
+          <button class="change-link" id="change-quiz" type="button">更改卷號</button>
+        </div>
+        <div class="progress" aria-live="polite"><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div><span class="progress-copy" id="progress-copy"></span></div>
+        <div id="question-groups"></div>
+      </section>
+      <p class="footer">此階段只在目前頁面暫存選擇與答案。關閉或重新整理頁面後，作答內容不會保留，也不會寫入試算表。</p>
+    </main>
+    <script>
+      const SOURCES = {
+        students: { id: '1TctKOS8qWOidvWLeuSwiQBw0BK4kJ9wGySt9vuTpygo', gid: '0' },
+        questions: { id: '14eJB4OkA1PEeujdAU0T96q2xd_o9XKBAKAhJ3f-cMMA', gid: '2028107386' },
+      };
+      const state = { students: [], quizzes: new Map(), student: null, quiz: null, answers: new Map() };
+      const $ = (id) => document.getElementById(id);
+
+      function readSheet({id, gid}) {
+        return new Promise((resolve, reject) => {
+          const callback = `sheetCallback${Date.now()}${Math.random().toString(36).slice(2)}`;
+          const script = document.createElement('script');
+          const timeout = setTimeout(() => finish(new Error('試算表回應逾時。')), 15000);
+          function finish(error, result) {
+            clearTimeout(timeout);
+            delete window[callback];
+            script.remove();
+            error ? reject(error) : resolve(result);
+          }
+          window[callback] = (response) => {
+            if (response?.status === 'error') return finish(new Error(response.errors?.[0]?.detailed_message || '無法讀取試算表。'));
+            const table = response?.table;
+            if (!table) return finish(new Error('試算表沒有可讀取的資料。'));
+            const rows = table.rows.map(row => (row.c || []).map(cell => cell?.f ?? cell?.v ?? ''));
+            finish(null, { columns: table.cols.map(col => col.label || col.id || ''), rows });
+          };
+          script.onerror = () => finish(new Error('無法連線到試算表。請確認試算表允許知道連結的人檢視。'));
+          const params = new URLSearchParams({ gid, tqx: `out:json;responseHandler:${callback}` });
+          script.src = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/gviz/tq?${params}`;
+          document.head.append(script);
+        });
+      }
+
+      function showMessage(element, message, isError = false) {
+        element.textContent = message;
+        element.classList.remove('hidden', 'error');
+        if (isError) element.classList.add('error');
+      }
+      function setStep(active) {
+        [1,2,3].forEach(n => $(`step-${n}`).classList.toggle('active', n <= active));
+      }
+      function studentParts(value) {
+        const code = String(value).trim();
+        return code.length >= 3 ? { code, room: code.slice(0, -2), seat: code.slice(-2) } : { code, room: '班級', seat: code };
+      }
+      function renderStudents(query = '') {
+        const list = $('student-list'); list.replaceChildren();
+        const term = query.trim().toLowerCase();
+        const filtered = state.students.filter(student => `${student.code} ${student.room} ${student.seat}`.toLowerCase().includes(term));
+        $('student-count').textContent = `${filtered.length} 位學生`;
+        if (!filtered.length) { list.innerHTML = '<div class="empty">找不到符合的班級座號。</div>'; return; }
+        for (const student of filtered) {
+          const button = document.createElement('button');
+          button.type = 'button'; button.className = `student-option${state.student?.code === student.code ? ' selected' : ''}`;
+          button.setAttribute('aria-pressed', String(state.student?.code === student.code));
+          button.innerHTML = `<span><span class="student-class">${escapeHtml(student.room)} 班</span><span class="student-seat">${escapeHtml(student.seat)} 號</span></span><span class="check" aria-hidden="true">${state.student?.code === student.code ? '✓' : ''}</span>`;
+          button.addEventListener('click', () => chooseStudent(student)); list.append(button);
+        }
+      }
+      function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+      function chooseStudent(student) {
+        state.student = student; $('chosen-student').textContent = `${student.room} 班・${student.seat} 號`;
+        $('quiz-card').classList.remove('hidden'); $('answers-card').classList.add('hidden');
+        $('student-card').classList.add('hidden'); setStep(2); $('quiz-card').scrollIntoView({behavior:'smooth',block:'start'});
+      }
+      function normalizeQuestions(sheet) {
+        const headings = sheet.columns.map(value => String(value).trim());
+        const findColumn = (names, fallback) => { const index = headings.findIndex(name => names.includes(name)); return index < 0 ? fallback : index; };
+        const quizIndex = findColumn(['卷號','卷号','卷'],0), questionIndex = findColumn(['題號','题号','題目','題次'],1);
+        const contentIndex = findColumn(['內容','内容','題目內容'],2);
+        for (const row of sheet.rows) {
+          const quiz = String(row[quizIndex] ?? '').trim(), rawQuestion = String(row[questionIndex] ?? '').trim();
+          if (!quiz || !rawQuestion) continue;
+          const entry = state.quizzes.get(quiz) || [];
+          const match = rawQuestion.match(/\d+/); const number = match ? Number(match[0]) : entry.length + 1;
+          if (!entry.some(question => question.number === number)) entry.push({ number, label: rawQuestion, content: String(row[contentIndex] ?? '').trim() });
+          state.quizzes.set(quiz, entry);
+        }
+        for (const questions of state.quizzes.values()) questions.sort((a,b) => a.number-b.number);
+      }
+      function showQuestions(quiz) {
+        state.quiz = quiz; state.answers = new Map((state.quizzes.get(quiz) || []).map(question => [question.number, 1]));
+        $('answers-card').classList.remove('hidden'); $('answer-context').textContent = `${state.student.room} 班・${state.student.seat} 號 / ${quiz}`;
+        const questions = state.quizzes.get(quiz) || []; $('answer-count').textContent = `共 ${questions.length} 題`;
+        const host = $('question-groups'); host.replaceChildren();
+        for (let start = 0; start < questions.length; start += 10) {
+          const chunk = questions.slice(start, start + 10);
+          const section = document.createElement('section'); section.className = 'question-block';
+          const heading = document.createElement('h3'); heading.textContent = `第 ${Math.floor(start / 10) + 1} 列 · 第 ${chunk[0].number}–${chunk.at(-1).number} 題`;
+          const scroll = document.createElement('div'); scroll.className = 'question-scroll';
+          const row = document.createElement('div'); row.className = 'question-row';
+          for (const question of chunk) {
+            const button = document.createElement('button'); button.type = 'button'; button.className = 'question'; button.dataset.question = question.number;
+            button.setAttribute('aria-label', `第 ${question.number} 題，答對 1`); button.setAttribute('aria-pressed','false');
+            button.innerHTML = `<span class="number">${escapeHtml(question.label)}</span><span class="value">1</span>`;
+            button.addEventListener('click', () => toggleAnswer(button, question.number)); row.append(button);
+          }
+          scroll.append(row); section.append(heading, scroll); host.append(section);
+        }
+        $('quiz-card').classList.add('hidden'); setStep(3); updateProgress(); $('answers-card').scrollIntoView({behavior:'smooth',block:'start'});
+      }
+      function toggleAnswer(button, number) {
+        const value = state.answers.get(number) === 1 ? 0 : 1; state.answers.set(number, value);
+        button.classList.toggle('wrong', value === 0); button.querySelector('.value').textContent = value;
+        button.setAttribute('aria-pressed', String(value === 0)); button.setAttribute('aria-label', `第 ${number} 題，${value === 1 ? '答對 1' : '答錯 0'}`); updateProgress();
+      }
+      function updateProgress() {
+        const total = state.answers.size; const correct = [...state.answers.values()].filter(value => value === 1).length;
+        $('progress-fill').style.width = total ? `${correct / total * 100}%` : '0%';
+        $('progress-copy').textContent = `${correct} / ${total} 題為 1`;
+      }
+
+      $('student-search').addEventListener('input', event => renderStudents(event.target.value));
+      $('change-student').addEventListener('click', () => { $('quiz-card').classList.add('hidden'); $('answers-card').classList.add('hidden'); $('student-card').classList.remove('hidden'); setStep(1); window.scrollTo({top:0,behavior:'smooth'}); });
+      $('change-quiz').addEventListener('click', () => { $('answers-card').classList.add('hidden'); $('quiz-card').classList.remove('hidden'); setStep(2); $('quiz-card').scrollIntoView({behavior:'smooth',block:'start'}); });
+      $('quiz-select').addEventListener('change', event => { if (event.target.value) showQuestions(event.target.value); });
+
+      Promise.all([readSheet(SOURCES.students), readSheet(SOURCES.questions)]).then(([studentsSheet, questionsSheet]) => {
+        state.students = studentsSheet.rows.map(row => String(row[0] ?? '').trim()).filter(code => /^\d{4,6}$/.test(code)).map(code => ({...studentParts(code)}));
+        state.students.sort((a,b) => a.room.localeCompare(b.room,'zh-Hant',{numeric:true}) || Number(a.seat)-Number(b.seat));
+        if (!state.students.length) throw new Error('名單表中沒有可辨識的班級座號。');
+        renderStudents(); normalizeQuestions(questionsSheet);
+        const select = $('quiz-select');
+        for (const [quiz, questions] of state.quizzes) { const option = document.createElement('option'); option.value = quiz; option.textContent = `${quiz}（${questions.length} 題）`; select.append(option); }
+        $('quiz-count').textContent = `${state.quizzes.size} 份卷`;
+        if (!state.quizzes.size) throw new Error('題目表中沒有可辨識的卷號與題目。');
+      }).catch(error => {
+        $('student-count').textContent = '載入失敗';
+        showMessage($('student-message'), `${error.message} 請確認兩份試算表的檢視權限，或稍後重新整理。`, true);
+        $('quiz-count').textContent = '無法讀取';
+        showMessage($('quiz-message'), error.message, true);
+      });
+    </script>
+  </body>
+</html>
