@@ -37,12 +37,12 @@
       .eyebrow { margin:0 0 10px; color:var(--green); font-size:12px; font-weight:800; letter-spacing:.13em; }
       h1 { margin:0; font-size:clamp(28px, 5vw, 40px); line-height:1.2; letter-spacing:-.04em; }
       .intro { margin:12px 0 0; color:var(--muted); line-height:1.7; }
-      .steps { display:flex; gap:8px; margin:24px 0 22px; overflow-x:auto; }
+      .steps { display:flex; gap:8px; margin:18px 0 16px; overflow-x:auto; }
       .step { display:flex; align-items:center; gap:9px; min-width:max-content; padding:9px 13px; border:1px solid var(--line); border-radius:999px; color:var(--muted); background:#fff; font-size:13px; }
       .step b { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:#eef1ee; font-size:12px; }
       .step.active { color:var(--green); border-color:#9cc6b2; background:var(--green-soft); font-weight:700; }
       .step.active b { color:white; background:var(--green); }
-      .card { margin-top:16px; padding:clamp(18px, 4vw, 28px); border:1px solid var(--line); border-radius:20px; background:var(--paper); box-shadow:var(--shadow); }
+      .card { margin-top:12px; padding:clamp(16px, 3vw, 24px); border:1px solid var(--line); border-radius:18px; background:var(--paper); box-shadow:var(--shadow); }
       .card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
       .card h2 { margin:0; font-size:20px; letter-spacing:-.02em; }
       .subtext { margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.6; }
@@ -79,17 +79,26 @@
       .question .value { font-size:21px; line-height:1; font-weight:800; }
       .empty { grid-column:1/-1; padding:25px 12px; border:1px dashed var(--line); border-radius:12px; color:var(--muted); text-align:center; }
       .notice { margin:18px 0 0; padding:12px 14px; border-radius:11px; color:#52645d; background:#f0f4f0; font-size:12px; line-height:1.65; }
+      .field-label { display:block; margin:0 0 7px; color:var(--muted); font-size:12px; font-weight:700; }
+      .choice-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+      .save-row { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:22px; }
+      .save-button { min-height:48px; padding:0 22px; border:0; border-radius:12px; color:#fff; background:var(--green); font-weight:750; cursor:pointer; }
+      .save-button:hover:not(:disabled) { background:#104d40; }
+      .save-button:disabled { opacity:.55; cursor:not-allowed; }
+      .save-status { color:var(--muted); font-size:13px; }
       .error { color:#963c32; background:#fff0ed; }
       .hidden { display:none !important; }
       .footer { padding:22px 4px 0; color:#87938d; font-size:11px; line-height:1.6; text-align:center; }
       @media (max-width:580px) {
         .page { width:min(100% - 24px, 980px); padding-top:20px; }
         .topline { margin-bottom:27px; }
-        .student-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
-        .card-head { flex-direction:column; }
-        .search { max-width:none; }
+        .choice-grid { grid-template-columns:1fr; gap:12px; }
+        .steps { gap:6px; margin:14px 0 12px; }
+        .step { gap:6px; padding:7px 10px; font-size:12px; }
         .question-row { gap:6px; }
         .question { min-height:60px; }
+        .save-row { align-items:stretch; flex-direction:column; }
+        .save-button { width:100%; }
       }
     </style>
   </head>
@@ -102,54 +111,44 @@
       <header class="hero">
         <p class="eyebrow">ASSESSMENT · RESPONSE</p>
         <h1>評量作答紀錄</h1>
-        <p class="intro">先選擇班級座號與評量卷，再逐題標記作答結果。</p>
+      <p class="intro">選擇班級座號與評量卷後，逐題標記並送出作答結果。</p>
       </header>
       <nav class="steps" aria-label="作答步驟">
         <span class="step active" id="step-1"><b>1</b>選擇學生</span>
         <span class="step" id="step-2"><b>2</b>選擇卷號</span>
         <span class="step" id="step-3"><b>3</b>標記答案</span>
       </nav>
-      <section class="card" id="student-card" aria-labelledby="student-title">
+      <section class="card" aria-label="選擇學生與評量卷">
         <div class="card-head">
-          <div><h2 id="student-title">你是誰？</h2><p class="subtext">請選擇自己的班級與座號。</p></div>
-          <span class="count" id="student-count">載入名單中…</span>
+          <div><h2>作答資料</h2><p class="subtext">選擇班級座號與卷號，題目會立即顯示在下方。</p></div>
         </div>
-        <input class="search" id="student-search" type="search" placeholder="搜尋班級或座號" aria-label="搜尋班級或座號" />
-        <div class="student-list" id="student-list" style="margin-top:14px"></div>
+        <div class="choice-grid">
+          <label><span class="field-label">步驟一｜選擇班級座號 <span class="count" id="student-count">載入名單中…</span></span><div class="select-wrap"><select id="student-select" aria-label="選擇班級座號" disabled><option value="">載入名單中…</option></select></div></label>
+          <label><span class="field-label">步驟二｜選擇卷號 <span class="count" id="quiz-count">載入卷號中…</span></span><div class="select-wrap"><select id="quiz-select" aria-label="選擇卷號" disabled><option value="">請先選擇班級座號</option></select></div></label>
+        </div>
         <p class="notice hidden" id="student-message" role="status"></p>
-      </section>
-      <section class="card hidden" id="quiz-card" aria-labelledby="quiz-title">
-        <div class="selected-summary">
-          <div><div class="summary-label">目前學生</div><div class="summary-value" id="chosen-student"></div></div>
-          <button class="change-link" id="change-student" type="button">更改</button>
-        </div>
-        <div class="card-head">
-          <div><h2 id="quiz-title">選擇評量卷</h2><p class="subtext">選擇卷號後會自動列出該卷的題目。</p></div>
-          <span class="count" id="quiz-count">載入卷號中…</span>
-        </div>
-        <div class="select-wrap"><select id="quiz-select" aria-label="選擇卷號"><option value="">請選擇卷號</option></select></div>
         <p class="notice hidden" id="quiz-message" role="status"></p>
       </section>
-      <section class="card hidden" id="answers-card" aria-labelledby="answers-title">
+      <section class="card" id="answers-card" aria-labelledby="answers-title">
         <div class="card-head">
           <div><h2 id="answers-title">逐題標記</h2><p class="subtext">每題預設為答對（1）；點一下即可切換為答錯（0）。每列 10 題。</p></div>
           <span class="count" id="answer-count"></span>
         </div>
-        <div class="selected-summary">
-          <div><div class="summary-label">學生 / 卷號</div><div class="summary-value" id="answer-context"></div></div>
-          <button class="change-link" id="change-quiz" type="button">更改卷號</button>
-        </div>
+        <div class="selected-summary"><div><div class="summary-label">目前選擇</div><div class="summary-value" id="answer-context">請先選擇學生與卷號</div></div></div>
         <div class="progress" aria-live="polite"><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div><span class="progress-copy" id="progress-copy"></span></div>
         <div id="question-groups"></div>
+        <div class="save-row"><span class="save-status" id="save-status" role="status">作答尚未送出</span><button class="save-button" id="submit-answers" type="button" disabled>送出作答紀錄</button></div>
+        <p class="notice hidden" id="save-message" role="status"></p>
       </section>
-      <p class="footer">此階段只在目前頁面暫存選擇與答案。關閉或重新整理頁面後，作答內容不會保留，也不會寫入試算表。</p>
+      <p class="footer">送出後會將班級座號、卷號及每題 0 / 1 記錄到答題紀錄試算表。</p>
     </main>
     <script>
       const SOURCES = {
         students: { id: '1TctKOS8qWOidvWLeuSwiQBw0BK4kJ9wGySt9vuTpygo', gid: '0' },
         questions: { id: '14eJB4OkA1PEeujdAU0T96q2xd_o9XKBAKAhJ3f-cMMA', gid: '2028107386' },
       };
-      const state = { students: [], quizzes: new Map(), student: null, quiz: null, answers: new Map() };
+      const WRITE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwu6168_tik_zYZghyXGygGuQ77i1h9U3ExAItdRB-cWV3Ncl84NH2Ts4wyXmUuv2y3/exec';
+      const state = { students: [], quizzes: new Map(), student: null, quiz: null, answers: new Map(), saved: false, submitting: false };
       const $ = (id) => document.getElementById(id);
 
       function readSheet({id, gid}) {
@@ -189,25 +188,25 @@
         const code = String(value).trim();
         return code.length >= 3 ? { code, room: code.slice(0, -2), seat: code.slice(-2) } : { code, room: '班級', seat: code };
       }
-      function renderStudents(query = '') {
-        const list = $('student-list'); list.replaceChildren();
-        const term = query.trim().toLowerCase();
-        const filtered = state.students.filter(student => `${student.code} ${student.room} ${student.seat}`.toLowerCase().includes(term));
-        $('student-count').textContent = `${filtered.length} 位學生`;
-        if (!filtered.length) { list.innerHTML = '<div class="empty">找不到符合的班級座號。</div>'; return; }
-        for (const student of filtered) {
-          const button = document.createElement('button');
-          button.type = 'button'; button.className = `student-option${state.student?.code === student.code ? ' selected' : ''}`;
-          button.setAttribute('aria-pressed', String(state.student?.code === student.code));
-          button.innerHTML = `<span><span class="student-class">${escapeHtml(student.room)} 班</span><span class="student-seat">${escapeHtml(student.seat)} 號</span></span><span class="check" aria-hidden="true">${state.student?.code === student.code ? '✓' : ''}</span>`;
-          button.addEventListener('click', () => chooseStudent(student)); list.append(button);
-        }
-      }
       function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
-      function chooseStudent(student) {
-        state.student = student; $('chosen-student').textContent = `${student.room} 班・${student.seat} 號`;
-        $('quiz-card').classList.remove('hidden'); $('answers-card').classList.add('hidden');
-        $('student-card').classList.add('hidden'); setStep(2); $('quiz-card').scrollIntoView({behavior:'smooth',block:'start'});
+      function chooseStudent(code) {
+        state.student = state.students.find(student => student.code === code) || null;
+        state.quiz = null; state.answers.clear(); state.saved = false;
+        $('save-message').classList.add('hidden');
+        const select = $('quiz-select'); select.value = '';
+        select.disabled = !state.student;
+        select.options[0].textContent = state.student ? '請選擇卷號' : '請先選擇班級座號';
+        $('answers-card').classList.remove('hidden'); $('question-groups').replaceChildren();
+        $('answer-context').textContent = state.student ? `${state.student.room} 班・${state.student.seat} 號 / 請選擇卷號` : '請先選擇學生與卷號';
+        setStep(state.student ? 2 : 1); updateProgress(); updateSubmitState();
+      }
+      function updateSubmitState() {
+        const ready = Boolean(state.student && state.quiz && state.answers.size && WRITE_ENDPOINT && !state.saved && !state.submitting);
+        $('submit-answers').disabled = !ready;
+        if (state.saved) $('save-status').textContent = '已送出';
+        else if (state.submitting) $('save-status').textContent = '送出中…';
+        else if (!WRITE_ENDPOINT) $('save-status').textContent = '尚待設定試算表寫入連線';
+        else $('save-status').textContent = '作答尚未送出';
       }
       function normalizeQuestions(sheet) {
         const headings = sheet.columns.map(value => String(value).trim());
@@ -225,7 +224,7 @@
         for (const questions of state.quizzes.values()) questions.sort((a,b) => a.number-b.number);
       }
       function showQuestions(quiz) {
-        state.quiz = quiz; state.answers = new Map((state.quizzes.get(quiz) || []).map(question => [question.number, 1]));
+        state.quiz = quiz; state.saved = false; state.answers = new Map((state.quizzes.get(quiz) || []).map(question => [question.number, 1]));
         $('answers-card').classList.remove('hidden'); $('answer-context').textContent = `${state.student.room} 班・${state.student.seat} 號 / ${quiz}`;
         const questions = state.quizzes.get(quiz) || []; $('answer-count').textContent = `共 ${questions.length} 題`;
         const host = $('question-groups'); host.replaceChildren();
@@ -243,9 +242,10 @@
           }
           scroll.append(row); section.append(heading, scroll); host.append(section);
         }
-        $('quiz-card').classList.add('hidden'); setStep(3); updateProgress(); $('answers-card').scrollIntoView({behavior:'smooth',block:'start'});
+        setStep(3); updateProgress(); updateSubmitState();
       }
       function toggleAnswer(button, number) {
+        state.saved = false;
         const value = state.answers.get(number) === 1 ? 0 : 1; state.answers.set(number, value);
         button.classList.toggle('wrong', value === 0); button.querySelector('.value').textContent = value;
         button.setAttribute('aria-pressed', String(value === 0)); button.setAttribute('aria-label', `第 ${number} 題，${value === 1 ? '答對 1' : '答錯 0'}`); updateProgress();
@@ -253,22 +253,47 @@
       function updateProgress() {
         const total = state.answers.size; const correct = [...state.answers.values()].filter(value => value === 1).length;
         $('progress-fill').style.width = total ? `${correct / total * 100}%` : '0%';
-        $('progress-copy').textContent = `${correct} / ${total} 題為 1`;
+        $('progress-copy').textContent = `${correct} / ${total} 題為 1`; updateSubmitState();
       }
 
-      $('student-search').addEventListener('input', event => renderStudents(event.target.value));
-      $('change-student').addEventListener('click', () => { $('quiz-card').classList.add('hidden'); $('answers-card').classList.add('hidden'); $('student-card').classList.remove('hidden'); setStep(1); window.scrollTo({top:0,behavior:'smooth'}); });
-      $('change-quiz').addEventListener('click', () => { $('answers-card').classList.add('hidden'); $('quiz-card').classList.remove('hidden'); setStep(2); $('quiz-card').scrollIntoView({behavior:'smooth',block:'start'}); });
-      $('quiz-select').addEventListener('change', event => { if (event.target.value) showQuestions(event.target.value); });
+      $('student-select').addEventListener('change', event => chooseStudent(event.target.value));
+      $('quiz-select').addEventListener('change', event => {
+        if (event.target.value) showQuestions(event.target.value);
+        else {
+          state.quiz = null; state.answers.clear(); state.saved = false; $('question-groups').replaceChildren();
+          $('answer-context').textContent = state.student ? `${state.student.room} 班・${state.student.seat} 號 / 請選擇卷號` : '請先選擇學生與卷號';
+          setStep(state.student ? 2 : 1); updateProgress(); updateSubmitState(); $('save-message').classList.add('hidden');
+        }
+      });
+      $('submit-answers').addEventListener('click', async () => {
+        if (!WRITE_ENDPOINT || !state.student || !state.quiz || state.submitting || state.saved) return;
+        state.submitting = true; updateSubmitState(); $('save-message').classList.add('hidden');
+        const payload = { studentCode: state.student.code, quiz: state.quiz, answers: [...state.answers].map(([question, value]) => ({ question, value })) };
+        try {
+          const body = new URLSearchParams({ payload: JSON.stringify(payload) });
+          await fetch(WRITE_ENDPOINT, { method: 'POST', mode: 'no-cors', body });
+          state.saved = true;
+          showMessage($('save-message'), '已送出請求。請到答題紀錄試算表確認資料是否完成寫入。');
+        } catch (error) {
+          showMessage($('save-message'), '送出失敗，請確認網路連線後再試一次。', true);
+        } finally { state.submitting = false; updateSubmitState(); }
+      });
 
       Promise.all([readSheet(SOURCES.students), readSheet(SOURCES.questions)]).then(([studentsSheet, questionsSheet]) => {
         state.students = studentsSheet.rows.map(row => String(row[0] ?? '').trim()).filter(code => /^\d{4,6}$/.test(code)).map(code => ({...studentParts(code)}));
         state.students.sort((a,b) => a.room.localeCompare(b.room,'zh-Hant',{numeric:true}) || Number(a.seat)-Number(b.seat));
         if (!state.students.length) throw new Error('名單表中沒有可辨識的班級座號。');
-        renderStudents(); normalizeQuestions(questionsSheet);
+        const studentSelect = $('student-select');
+        studentSelect.replaceChildren(new Option('請選擇班級座號',''));
+        for (const student of state.students) studentSelect.add(new Option(`${student.room} 班・${student.seat} 號`, student.code));
+        studentSelect.disabled = false;
+        $('student-count').textContent = `${state.students.length} 位學生`;
+        normalizeQuestions(questionsSheet);
         const select = $('quiz-select');
         for (const [quiz, questions] of state.quizzes) { const option = document.createElement('option'); option.value = quiz; option.textContent = `${quiz}（${questions.length} 題）`; select.append(option); }
         $('quiz-count').textContent = `${state.quizzes.size} 份卷`;
+        select.disabled = true;
+        $('answers-card').classList.remove('hidden'); updateSubmitState(); updateProgress();
         if (!state.quizzes.size) throw new Error('題目表中沒有可辨識的卷號與題目。');
       }).catch(error => {
         $('student-count').textContent = '載入失敗';
