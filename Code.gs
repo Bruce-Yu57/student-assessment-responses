@@ -1,16 +1,40 @@
+const DESTINATION_SHEET_NAME = 'ReDraft';
 const DESTINATION_SPREADSHEET_ID = '1BDrF1havIeF5AFNcW9KRQY4gWdBlD5Yd2hjkr98mM84';
-const DESTINATION_SHEET_NAME = '對錯紀錄';
-const EXPECTED_HEADERS = ['學生班級座號', '卷號', '題號', '對錯紀錄'];
+const EXPECTED_HEADERS = ['學生班級座號', 'Exam_ID', 'Question_No', '對錯紀錄'];
 const STUDENT_SOURCE_ID = '1TctKOS8qWOidvWLeuSwiQBw0BK4kJ9wGySt9vuTpygo';
 const STUDENT_SOURCE_GID = 0;
 const QUESTION_SOURCE_ID = '14eJB4OkA1PEeujdAU0T96q2xd_o9XKBAKAhJ3f-cMMA';
-const QUESTION_SOURCE_GID = 2028107386;
+const QUESTION_SOURCE_GID = 2028107386; // draft
 
 function getSheetById(spreadsheetId, gid) {
   const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
   const sheet = spreadsheet.getSheets().find(candidate => candidate.getSheetId() === gid);
-  if (!sheet) throw new Error('A source sheet was not found.');
+  if (!sheet) throw new Error('Source sheet was not found.');
   return sheet;
+}
+
+function getColumnIndex(headers, name) {
+  const index = headers.indexOf(name);
+  if (index < 0) throw new Error(`Required source column is missing: ${name}`);
+  return index;
+}
+
+function getActiveQuestionKeys() {
+  const sheet = getSheetById(QUESTION_SOURCE_ID, QUESTION_SOURCE_GID);
+  const values = sheet.getDataRange().getDisplayValues();
+  if (values.length < 2) throw new Error('No quiz questions were found.');
+  const headers = values[0].map(value => value.trim());
+  const quizIndex = getColumnIndex(headers, 'Exam_ID');
+  const questionIndex = getColumnIndex(headers, 'Question_No');
+  const statusIndex = getColumnIndex(headers, '狀態');
+  const keys = new Set();
+  values.slice(1).forEach(row => {
+    const quiz = String(row[quizIndex] || '').trim();
+    const question = String(row[questionIndex] || '').trim();
+    const status = String(row[statusIndex] || '').trim().toUpperCase();
+    if (quiz && question && status === 'A') keys.add(`${quiz}|${question}`);
+  });
+  return keys;
 }
 
 function validateSourceChoices(studentCode, quiz, answers) {
@@ -21,29 +45,17 @@ function validateSourceChoices(studentCode, quiz, answers) {
     : [];
   if (!studentCodes.includes(studentCode)) throw new Error('Student code is not in the current roster.');
 
-  const questionSheet = getSheetById(QUESTION_SOURCE_ID, QUESTION_SOURCE_GID);
-  const questionLastRow = questionSheet.getLastRow();
-  if (questionLastRow < 2) throw new Error('No quiz questions were found.');
-  const data = questionSheet.getRange(1, 1, questionLastRow, questionSheet.getLastColumn()).getDisplayValues();
-  const headings = data[0].map(value => value.trim());
-  const quizIndex = headings.findIndex(value => ['卷號', '卷号', '卷'].includes(value));
-  const questionIndex = headings.findIndex(value => ['題號', '题号', '題目', '題次'].includes(value));
-  if (quizIndex < 0 || questionIndex < 0) throw new Error('Quiz source headers are not recognized.');
-  const validQuestions = new Set();
-  data.slice(1).forEach(row => {
-    const rowQuiz = String(row[quizIndex] || '').trim();
-    const match = String(row[questionIndex] || '').match(/\d+/);
-    if (rowQuiz && match) validQuestions.add(`${rowQuiz}|${Number(match[0])}`);
-  });
+  const activeQuestions = getActiveQuestionKeys();
   answers.forEach(answer => {
-    if (!validQuestions.has(`${quiz}|${Number(answer.question)}`)) throw new Error('Question is not in the selected quiz.');
+    if (!activeQuestions.has(`${quiz}|${answer.question}`)) {
+      throw new Error('Quiz or question is not currently active in draft.');
+    }
   });
 }
 
 /**
- * Deploy as a Google Apps Script web app that runs as the sheet owner and is
- * accessible to anyone. The public page sends only validated answer rows.
- * Existing student/quiz/question keys are updated so a repeat submit is safe.
+ * Deploy as a web app that runs as the owner and is accessible to anyone.
+ * Saves/upserts one row per student, exam, and question into ReDraft.
  */
 function doPost(e) {
   try {
@@ -55,39 +67,39 @@ function doPost(e) {
     const answers = payload.answers;
 
     if (!/^\d{4,6}$/.test(studentCode)) throw new Error('Invalid student code.');
-    if (!/^[A-Za-z0-9_-]{1,40}$/.test(quiz)) throw new Error('Invalid quiz number.');
+    if (!quiz || quiz.length > 100) throw new Error('Invalid Exam_ID.');
     if (!Array.isArray(answers) || answers.length < 1 || answers.length > 300) throw new Error('Invalid answer count.');
 
     const seen = new Set();
     const rows = answers.map(answer => {
-      const question = Number(answer.question);
+      const question = String(answer.question || '').trim();
       const value = Number(answer.value);
-      if (!Number.isInteger(question) || question < 1 || question > 10000 || (value !== 0 && value !== 1)) {
-        throw new Error('Invalid answer data.');
-      }
+      if (!question || question.length > 80 || (value !== 0 && value !== 1)) throw new Error('Invalid answer data.');
       if (seen.has(question)) throw new Error('Duplicate question.');
       seen.add(question);
       return [studentCode, quiz, question, value];
     });
 
-    validateSourceChoices(studentCode, quiz, rows.map(row => ({question: row[2], value: row[3]})));
+    validateSourceChoices(studentCode, quiz, rows.map(row => ({question: row[2]})));
 
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
     try {
-      const sheet = SpreadsheetApp.openById(DESTINATION_SPREADSHEET_ID).getSheetByName(DESTINATION_SHEET_NAME);
-      if (!sheet) throw new Error('Destination sheet was not found.');
+      const activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const spreadsheet = activeSpreadsheet && activeSpreadsheet.getId() === DESTINATION_SPREADSHEET_ID
+        ? activeSpreadsheet
+        : SpreadsheetApp.openById(DESTINATION_SPREADSHEET_ID);
+      const sheet = spreadsheet.getSheetByName(DESTINATION_SHEET_NAME);
+      if (!sheet) throw new Error('Destination sheet ReDraft was not found.');
       const headers = sheet.getRange(1, 1, 1, EXPECTED_HEADERS.length).getDisplayValues()[0];
       if (EXPECTED_HEADERS.some((header, index) => headers[index] !== header)) {
-        throw new Error('Destination headers do not match the expected columns.');
+        throw new Error('Destination headers do not match: 學生班級座號, Exam_ID, Question_No, 對錯紀錄.');
       }
 
       const lastRow = sheet.getLastRow();
-      const existing = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, EXPECTED_HEADERS.length).getValues() : [];
+      const existing = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, EXPECTED_HEADERS.length).getDisplayValues() : [];
       const rowByKey = new Map();
-      existing.forEach((row, index) => {
-        rowByKey.set(`${row[0]}|${row[1]}|${row[2]}`, index + 2);
-      });
+      existing.forEach((row, index) => rowByKey.set(`${row[0]}|${row[1]}|${row[2]}`, index + 2));
 
       const appendRows = [];
       rows.forEach(row => {
@@ -103,14 +115,14 @@ function doPost(e) {
       lock.releaseLock();
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, saved: rows.length }))
+    return ContentService.createTextOutput(JSON.stringify({ok: true, saved: rows.length}))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(error.message || error) }))
+    return ContentService.createTextOutput(JSON.stringify({ok: false, error: String(error.message || error)}))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 function doGet() {
-  return ContentService.createTextOutput('Assessment response endpoint is ready.');
+  return ContentService.createTextOutput('Assessment ReDraft endpoint is ready.');
 }

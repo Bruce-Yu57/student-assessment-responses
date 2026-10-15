@@ -115,16 +115,16 @@
       </header>
       <nav class="steps" aria-label="作答步驟">
         <span class="step active" id="step-1"><b>1</b>選擇學生</span>
-        <span class="step" id="step-2"><b>2</b>選擇卷號</span>
+        <span class="step" id="step-2"><b>2</b>選擇考卷</span>
         <span class="step" id="step-3"><b>3</b>標記答案</span>
       </nav>
       <section class="card" aria-label="選擇學生與評量卷">
         <div class="card-head">
-          <div><h2>作答資料</h2><p class="subtext">選擇班級座號與卷號，題目會立即顯示在下方。</p></div>
+          <div><h2>作答資料</h2><p class="subtext">選擇班級座號與考卷，題目會立即顯示在下方。</p></div>
         </div>
         <div class="choice-grid">
           <label><span class="field-label">步驟一｜選擇班級座號 <span class="count" id="student-count">載入名單中…</span></span><div class="select-wrap"><select id="student-select" aria-label="選擇班級座號" disabled><option value="">載入名單中…</option></select></div></label>
-          <label><span class="field-label">步驟二｜選擇卷號 <span class="count" id="quiz-count">載入卷號中…</span></span><div class="select-wrap"><select id="quiz-select" aria-label="選擇卷號" disabled><option value="">請先選擇班級座號</option></select></div></label>
+          <label><span class="field-label">步驟二｜選擇考卷 <span class="count" id="quiz-count">載入考卷中…</span></span><div class="select-wrap"><select id="quiz-select" aria-label="選擇考卷" disabled><option value="">請先選擇班級座號</option></select></div></label>
         </div>
         <p class="notice hidden" id="student-message" role="status"></p>
         <p class="notice hidden" id="quiz-message" role="status"></p>
@@ -134,21 +134,21 @@
           <div><h2 id="answers-title">逐題標記</h2><p class="subtext">每題預設為答對（1）；點一下即可切換為答錯（0）。每列 10 題。</p></div>
           <span class="count" id="answer-count"></span>
         </div>
-        <div class="selected-summary"><div><div class="summary-label">目前選擇</div><div class="summary-value" id="answer-context">請先選擇學生與卷號</div></div></div>
+        <div class="selected-summary"><div><div class="summary-label">目前選擇</div><div class="summary-value" id="answer-context">請先選擇學生與考卷</div></div></div>
         <div class="progress" aria-live="polite"><div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div><span class="progress-copy" id="progress-copy"></span></div>
         <div id="question-groups"></div>
         <div class="save-row"><span class="save-status" id="save-status" role="status">作答尚未送出</span><button class="save-button" id="submit-answers" type="button" disabled>送出作答紀錄</button></div>
         <p class="notice hidden" id="save-message" role="status"></p>
       </section>
-      <p class="footer">送出後會將班級座號、卷號及每題 0 / 1 記錄到答題紀錄試算表。</p>
+      <p class="footer">作答紀錄會先寫入 ReDraft，供老師後續確認。</p>
     </main>
     <script>
       const SOURCES = {
         students: { id: '1TctKOS8qWOidvWLeuSwiQBw0BK4kJ9wGySt9vuTpygo', gid: '0' },
         questions: { id: '14eJB4OkA1PEeujdAU0T96q2xd_o9XKBAKAhJ3f-cMMA', gid: '2028107386' },
       };
-      const WRITE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwu6168_tik_zYZghyXGygGuQ77i1h9U3ExAItdRB-cWV3Ncl84NH2Ts4wyXmUuv2y3/exec';
-      const state = { students: [], quizzes: new Map(), student: null, quiz: null, answers: new Map(), saved: false, submitting: false };
+      const WRITE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxAcgYe_tqhi7M3XTIOcYdj3KRnp-ZwBdjq-MyiIW4HvN-tkmG83TBJKr53IpzPdJu9/exec';
+      const state = { students: [], quizzes: new Map(), quizOrder: [], student: null, quiz: null, answers: new Map(), saved: false, submitting: false };
       const $ = (id) => document.getElementById(id);
 
       function readSheet({id, gid}) {
@@ -195,9 +195,9 @@
         $('save-message').classList.add('hidden');
         const select = $('quiz-select'); select.value = '';
         select.disabled = !state.student;
-        select.options[0].textContent = state.student ? '請選擇卷號' : '請先選擇班級座號';
+        select.options[0].textContent = state.student ? '請選擇考卷' : '請先選擇班級座號';
         $('answers-card').classList.remove('hidden'); $('question-groups').replaceChildren();
-        $('answer-context').textContent = state.student ? `${state.student.room} 班・${state.student.seat} 號 / 請選擇卷號` : '請先選擇學生與卷號';
+        $('answer-context').textContent = state.student ? `${state.student.room} 班・${state.student.seat} 號 / 請選擇考卷` : '請先選擇學生與考卷';
         setStep(state.student ? 2 : 1); updateProgress(); updateSubmitState();
       }
       function updateSubmitState() {
@@ -210,45 +210,52 @@
       }
       function normalizeQuestions(sheet) {
         const headings = sheet.columns.map(value => String(value).trim());
-        const findColumn = (names, fallback) => { const index = headings.findIndex(name => names.includes(name)); return index < 0 ? fallback : index; };
-        const quizIndex = findColumn(['卷號','卷号','卷'],0), questionIndex = findColumn(['題號','题号','題目','題次'],1);
-        const contentIndex = findColumn(['內容','内容','題目內容'],2);
+        const findColumn = (name) => headings.indexOf(name);
+        const quizIndex = findColumn('Exam_ID'), questionIndex = findColumn('Question_No'), statusIndex = findColumn('狀態');
+        const contentIndex = findColumn('題目內容');
+        if ([quizIndex, questionIndex, statusIndex].some(index => index < 0)) throw new Error('考卷工作表欄位需包含 Exam_ID、Question_No、狀態。');
+        const latestRowByQuiz = new Map();
+        sheet.rows.forEach((row, rowIndex) => {
+          if (String(row[statusIndex] ?? '').trim().toUpperCase() !== 'A') return;
+          const quiz = String(row[quizIndex] ?? '').trim();
+          if (quiz) latestRowByQuiz.set(quiz, rowIndex);
+        });
+        const latestQuizzes = [...latestRowByQuiz.entries()].sort((a,b) => b[1]-a[1]).slice(0,4).map(([quiz]) => quiz);
+        state.quizOrder = latestQuizzes;
         for (const row of sheet.rows) {
           const quiz = String(row[quizIndex] ?? '').trim(), rawQuestion = String(row[questionIndex] ?? '').trim();
-          if (!quiz || !rawQuestion) continue;
+          if (!latestQuizzes.includes(quiz) || String(row[statusIndex] ?? '').trim().toUpperCase() !== 'A' || !rawQuestion) continue;
           const entry = state.quizzes.get(quiz) || [];
-          const match = rawQuestion.match(/\d+/); const number = match ? Number(match[0]) : entry.length + 1;
-          if (!entry.some(question => question.number === number)) entry.push({ number, label: rawQuestion, content: String(row[contentIndex] ?? '').trim() });
+          if (!entry.some(question => question.id === rawQuestion)) entry.push({ id: rawQuestion, label: rawQuestion, content: contentIndex < 0 ? '' : String(row[contentIndex] ?? '').trim() });
           state.quizzes.set(quiz, entry);
         }
-        for (const questions of state.quizzes.values()) questions.sort((a,b) => a.number-b.number);
       }
       function showQuestions(quiz) {
-        state.quiz = quiz; state.saved = false; state.answers = new Map((state.quizzes.get(quiz) || []).map(question => [question.number, 1]));
+        state.quiz = quiz; state.saved = false; state.answers = new Map((state.quizzes.get(quiz) || []).map(question => [question.id, 1]));
         $('answers-card').classList.remove('hidden'); $('answer-context').textContent = `${state.student.room} 班・${state.student.seat} 號 / ${quiz}`;
         const questions = state.quizzes.get(quiz) || []; $('answer-count').textContent = `共 ${questions.length} 題`;
         const host = $('question-groups'); host.replaceChildren();
         for (let start = 0; start < questions.length; start += 10) {
           const chunk = questions.slice(start, start + 10);
           const section = document.createElement('section'); section.className = 'question-block';
-          const heading = document.createElement('h3'); heading.textContent = `第 ${Math.floor(start / 10) + 1} 列 · 第 ${chunk[0].number}–${chunk.at(-1).number} 題`;
+          const heading = document.createElement('h3'); heading.textContent = `第 ${Math.floor(start / 10) + 1} 列 · ${chunk[0].label}–${chunk.at(-1).label}`;
           const scroll = document.createElement('div'); scroll.className = 'question-scroll';
           const row = document.createElement('div'); row.className = 'question-row';
           for (const question of chunk) {
-            const button = document.createElement('button'); button.type = 'button'; button.className = 'question'; button.dataset.question = question.number;
-            button.setAttribute('aria-label', `第 ${question.number} 題，答對 1`); button.setAttribute('aria-pressed','false');
+            const button = document.createElement('button'); button.type = 'button'; button.className = 'question'; button.dataset.question = question.id;
+            button.setAttribute('aria-label', `${question.label}，答對 1`); button.setAttribute('aria-pressed','false');
             button.innerHTML = `<span class="number">${escapeHtml(question.label)}</span><span class="value">1</span>`;
-            button.addEventListener('click', () => toggleAnswer(button, question.number)); row.append(button);
+            button.addEventListener('click', () => toggleAnswer(button, question.id)); row.append(button);
           }
           scroll.append(row); section.append(heading, scroll); host.append(section);
         }
         setStep(3); updateProgress(); updateSubmitState();
       }
-      function toggleAnswer(button, number) {
+      function toggleAnswer(button, questionId) {
         state.saved = false;
-        const value = state.answers.get(number) === 1 ? 0 : 1; state.answers.set(number, value);
+        const value = state.answers.get(questionId) === 1 ? 0 : 1; state.answers.set(questionId, value);
         button.classList.toggle('wrong', value === 0); button.querySelector('.value').textContent = value;
-        button.setAttribute('aria-pressed', String(value === 0)); button.setAttribute('aria-label', `第 ${number} 題，${value === 1 ? '答對 1' : '答錯 0'}`); updateProgress();
+        button.setAttribute('aria-pressed', String(value === 0)); button.setAttribute('aria-label', `${questionId}，${value === 1 ? '答對 1' : '答錯 0'}`); updateProgress();
       }
       function updateProgress() {
         const total = state.answers.size; const correct = [...state.answers.values()].filter(value => value === 1).length;
@@ -261,7 +268,7 @@
         if (event.target.value) showQuestions(event.target.value);
         else {
           state.quiz = null; state.answers.clear(); state.saved = false; $('question-groups').replaceChildren();
-          $('answer-context').textContent = state.student ? `${state.student.room} 班・${state.student.seat} 號 / 請選擇卷號` : '請先選擇學生與卷號';
+          $('answer-context').textContent = state.student ? `${state.student.room} 班・${state.student.seat} 號 / 請選擇考卷` : '請先選擇學生與考卷';
           setStep(state.student ? 2 : 1); updateProgress(); updateSubmitState(); $('save-message').classList.add('hidden');
         }
       });
@@ -273,7 +280,7 @@
           const body = new URLSearchParams({ payload: JSON.stringify(payload) });
           await fetch(WRITE_ENDPOINT, { method: 'POST', mode: 'no-cors', body });
           state.saved = true;
-          showMessage($('save-message'), '已送出請求。請到答題紀錄試算表確認資料是否完成寫入。');
+          showMessage($('save-message'), '已送出請求。請到 ReDraft 頁面確認資料是否完成寫入。');
         } catch (error) {
           showMessage($('save-message'), '送出失敗，請確認網路連線後再試一次。', true);
         } finally { state.submitting = false; updateSubmitState(); }
@@ -290,11 +297,11 @@
         $('student-count').textContent = `${state.students.length} 位學生`;
         normalizeQuestions(questionsSheet);
         const select = $('quiz-select');
-        for (const [quiz, questions] of state.quizzes) { const option = document.createElement('option'); option.value = quiz; option.textContent = `${quiz}（${questions.length} 題）`; select.append(option); }
+        for (const quiz of state.quizOrder) { const questions = state.quizzes.get(quiz) || []; const option = document.createElement('option'); option.value = quiz; option.textContent = `${quiz}（${questions.length} 題）`; select.append(option); }
         $('quiz-count').textContent = `${state.quizzes.size} 份卷`;
         select.disabled = true;
         $('answers-card').classList.remove('hidden'); updateSubmitState(); updateProgress();
-        if (!state.quizzes.size) throw new Error('題目表中沒有可辨識的卷號與題目。');
+        if (!state.quizzes.size) throw new Error('draft 中沒有狀態為 A 的考卷資料。');
       }).catch(error => {
         $('student-count').textContent = '載入失敗';
         showMessage($('student-message'), `${error.message} 請確認兩份試算表的檢視權限，或稍後重新整理。`, true);
