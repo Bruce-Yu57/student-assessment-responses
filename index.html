@@ -30,6 +30,9 @@
       button, select, input { font: inherit; }
       .page { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 64px; }
       .topline { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:34px; }
+      .top-actions { display:flex; align-items:center; gap:10px; }
+      .teacher-open, .secondary-button { min-height:40px; padding:0 14px; border:1px solid var(--line); border-radius:11px; color:var(--green); background:#fff; font-weight:700; cursor:pointer; }
+      .teacher-open:hover, .secondary-button:hover { border-color:#8ab6a2; background:var(--green-soft); }
       .brand { display:flex; align-items:center; gap:11px; font-size:14px; font-weight:700; letter-spacing:.04em; }
       .brand-mark { display:grid; place-items:center; width:38px; height:38px; border-radius:13px; background:var(--green); color:#fff; font-size:19px; }
       .draft-pill { color:var(--muted); border:1px solid var(--line); border-radius:999px; background:#fff; padding:8px 12px; font-size:12px; white-space:nowrap; }
@@ -89,9 +92,23 @@
       .error { color:#963c32; background:#fff0ed; }
       .hidden { display:none !important; }
       .footer { padding:22px 4px 0; color:#87938d; font-size:11px; line-height:1.6; text-align:center; }
+      .teacher-panel { margin:16px 0 22px; }
+      .teacher-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+      .teacher-toolbar h2 { margin:0; font-size:20px; }
+      .teacher-actions { display:flex; flex-wrap:wrap; gap:8px; }
+      .teacher-table-wrap { overflow:auto; }
+      .teacher-table { width:100%; border-collapse:collapse; min-width:640px; }
+      .teacher-table th, .teacher-table td { padding:8px; border-bottom:1px solid var(--line); text-align:left; }
+      .teacher-table th { color:var(--muted); font-size:12px; }
+      .teacher-table input { width:100%; min-width:80px; padding:9px; border:1px solid var(--line); border-radius:8px; }
+      .teacher-table input[data-field="value"] { min-width:56px; width:64px; }
+      .teacher-note { margin:0 0 14px; color:var(--muted); font-size:13px; line-height:1.6; }
+      .teacher-status { margin-top:12px; color:var(--muted); font-size:13px; }
       @media (max-width:580px) {
         .page { width:min(100% - 24px, 980px); padding-top:20px; }
         .topline { margin-bottom:27px; }
+        .top-actions { align-items:flex-end; flex-direction:column; }
+        .teacher-open { min-height:36px; padding:0 10px; font-size:13px; }
         .choice-grid { grid-template-columns:1fr; gap:12px; }
         .steps { gap:6px; margin:14px 0 12px; }
         .step { gap:6px; padding:7px 10px; font-size:12px; }
@@ -106,7 +123,7 @@
     <main class="page">
       <div class="topline">
         <div class="brand"><span class="brand-mark" aria-hidden="true">答</span><span>學習評量</span></div>
-        <span class="draft-pill">作答尚未送出</span>
+        <div class="top-actions"><button class="teacher-open" id="teacher-open" type="button">教師管理</button><span class="draft-pill">作答尚未送出</span></div>
       </div>
       <header class="hero">
         <p class="eyebrow">ASSESSMENT · RESPONSE</p>
@@ -118,6 +135,20 @@
         <span class="step" id="step-2"><b>2</b>選擇考卷</span>
         <span class="step" id="step-3"><b>3</b>標記答案</span>
       </nav>
+      <section class="card teacher-panel hidden" id="teacher-panel" aria-label="教師管理">
+        <div class="teacher-toolbar"><h2>教師管理</h2><div class="teacher-actions"><button class="secondary-button hidden" id="teacher-refresh" type="button">重新讀取</button><button class="secondary-button" id="teacher-close" type="button">離開管理</button></div></div>
+        <div id="teacher-gate">
+          <p class="teacher-note">輸入教師辨識碼後，可檢視並修正學生草稿，再確認送入 Record。</p>
+          <div class="choice-grid"><label><span class="field-label">教師辨識碼</span><input class="search" id="teacher-code" type="text" autocomplete="off" aria-label="教師辨識碼" /></label><div style="display:flex;align-items:flex-end"><button class="save-button" id="teacher-enter" type="button">進入管理</button></div></div>
+          <p class="teacher-status" id="teacher-gate-status" role="status"></p>
+        </div>
+        <div id="teacher-review" class="hidden">
+          <p class="teacher-note">可直接修改班級座號、考卷、題號與對錯值。按確認後會先寫入 Record，確認成功才清空 ReDraft。</p>
+          <div class="teacher-actions" style="margin-bottom:12px"><button class="save-button" id="teacher-promote" type="button">確認並送至 Record</button></div>
+          <div class="teacher-table-wrap"><table class="teacher-table"><thead><tr><th>學生班級座號</th><th>Exam_ID</th><th>Question_Type</th><th>Question_No</th><th>對錯紀錄</th></tr></thead><tbody id="teacher-rows"></tbody></table></div>
+          <p class="teacher-status" id="teacher-status" role="status"></p>
+        </div>
+      </section>
       <section class="card" aria-label="選擇學生與評量卷">
         <div class="card-head">
           <div><h2>作答資料</h2><p class="subtext">選擇班級座號與考卷，題目會立即顯示在下方。</p></div>
@@ -148,7 +179,7 @@
         questions: { id: '14eJB4OkA1PEeujdAU0T96q2xd_o9XKBAKAhJ3f-cMMA', gid: '2028107386' },
       };
       const WRITE_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxAcgYe_tqhi7M3XTIOcYdj3KRnp-ZwBdjq-MyiIW4HvN-tkmG83TBJKr53IpzPdJu9/exec';
-      const state = { students: [], quizzes: new Map(), quizOrder: [], student: null, quiz: null, answers: new Map(), saved: false, submitting: false };
+      const state = { students: [], quizzes: new Map(), quizOrder: [], student: null, quiz: null, answers: new Map(), saved: false, submitting: false, teacherCode: '', teacherRows: [] };
       const $ = (id) => document.getElementById(id);
 
       function readSheet({id, gid}) {
@@ -189,6 +220,20 @@
         return code.length >= 3 ? { code, room: code.slice(0, -2), seat: code.slice(-2) } : { code, room: '班級', seat: code };
       }
       function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+      function questionType(id) { return String(id).match(/^([A-Za-z]+)/)?.[1].toUpperCase() || 'OTHER'; }
+      function questionTypeLabel(type) { return ({Q:'選擇題', F:'填充題', W:'計算題'})[type] || `${type} 類`; }
+      function jsonp(params) {
+        return new Promise((resolve, reject) => {
+          const callback = `assessmentJsonp${Date.now()}${Math.random().toString(36).slice(2)}`;
+          const script = document.createElement('script');
+          const timeout = setTimeout(() => finish(new Error('伺服器回應逾時。')), 15000);
+          function finish(error, result) { clearTimeout(timeout); delete window[callback]; script.remove(); error ? reject(error) : resolve(result); }
+          window[callback] = result => finish(null, result);
+          script.onerror = () => finish(new Error('無法連線到 Apps Script。'));
+          const query = new URLSearchParams({...params, callback, _: Date.now()});
+          script.src = `${WRITE_ENDPOINT}?${query}`; document.head.append(script);
+        });
+      }
       function chooseStudent(code) {
         state.student = state.students.find(student => student.code === code) || null;
         state.quiz = null; state.answers.clear(); state.saved = false;
@@ -235,19 +280,31 @@
         $('answers-card').classList.remove('hidden'); $('answer-context').textContent = `${state.student.room} 班・${state.student.seat} 號 / ${quiz}`;
         const questions = state.quizzes.get(quiz) || []; $('answer-count').textContent = `共 ${questions.length} 題`;
         const host = $('question-groups'); host.replaceChildren();
-        for (let start = 0; start < questions.length; start += 10) {
-          const chunk = questions.slice(start, start + 10);
-          const section = document.createElement('section'); section.className = 'question-block';
-          const heading = document.createElement('h3'); heading.textContent = `第 ${Math.floor(start / 10) + 1} 列 · ${chunk[0].label}–${chunk.at(-1).label}`;
-          const scroll = document.createElement('div'); scroll.className = 'question-scroll';
-          const row = document.createElement('div'); row.className = 'question-row';
-          for (const question of chunk) {
-            const button = document.createElement('button'); button.type = 'button'; button.className = 'question'; button.dataset.question = question.id;
-            button.setAttribute('aria-label', `${question.label}，答對 1`); button.setAttribute('aria-pressed','false');
-            button.innerHTML = `<span class="number">${escapeHtml(question.label)}</span><span class="value">1</span>`;
-            button.addEventListener('click', () => toggleAnswer(button, question.id)); row.append(button);
+        const groups = new Map();
+        for (const question of questions) {
+          const type = questionType(question.id);
+          if (!groups.has(type)) groups.set(type, []);
+          groups.get(type).push(question);
+        }
+        for (const [type, typedQuestions] of groups) {
+          const typeSection = document.createElement('section'); typeSection.className = 'question-block';
+          const typeHeading = document.createElement('h3'); typeHeading.textContent = `${questionTypeLabel(type)}（${type}） · ${typedQuestions.length} 題`;
+          typeSection.append(typeHeading);
+          for (let start = 0; start < typedQuestions.length; start += 10) {
+            const chunk = typedQuestions.slice(start, start + 10);
+            const line = document.createElement('div'); line.className = 'question-block';
+            const lineHeading = document.createElement('h3'); lineHeading.textContent = `${questionTypeLabel(type)}第 ${Math.floor(start / 10) + 1} 列 · ${chunk[0].label}–${chunk.at(-1).label}`;
+            const scroll = document.createElement('div'); scroll.className = 'question-scroll';
+            const row = document.createElement('div'); row.className = 'question-row';
+            for (const question of chunk) {
+              const button = document.createElement('button'); button.type = 'button'; button.className = 'question'; button.dataset.question = question.id;
+              button.setAttribute('aria-label', `${question.label}，答對 1`); button.setAttribute('aria-pressed','false');
+              button.innerHTML = `<span class="number">${escapeHtml(question.label)}</span><span class="value">1</span>`;
+              button.addEventListener('click', () => toggleAnswer(button, question.id)); row.append(button);
+            }
+            scroll.append(row); line.append(lineHeading, scroll); typeSection.append(line);
           }
-          scroll.append(row); section.append(heading, scroll); host.append(section);
+          host.append(typeSection);
         }
         setStep(3); updateProgress(); updateSubmitState();
       }
@@ -262,6 +319,80 @@
         $('progress-fill').style.width = total ? `${correct / total * 100}%` : '0%';
         $('progress-copy').textContent = `${correct} / ${total} 題為 1`; updateSubmitState();
       }
+
+      function setTeacherStatus(message, isError = false) {
+        const status = $('teacher-status'); status.textContent = message; status.classList.toggle('error', isError);
+      }
+      function renderTeacherRows(rows) {
+        state.teacherRows = rows;
+        const body = $('teacher-rows'); body.replaceChildren();
+        rows.forEach((values, index) => {
+          const row = document.createElement('tr'); row.dataset.original = JSON.stringify(values);
+          const fields = [
+            {field:'studentCode', value:values[0], label:'學生班級座號'},
+            {field:'quiz', value:values[1], label:'考卷'},
+            {field:'questionType', value:questionTypeLabel(questionType(values[2])), label:'Question_Type', readOnly:true},
+            {field:'question', value:values[2], label:'題號'},
+            {field:'value', value:values[3], label:'對錯紀錄'},
+          ];
+          for (const item of fields) {
+            const field = item.field;
+            const cell = document.createElement('td'); const input = document.createElement('input'); input.type = 'text'; input.dataset.field = field; input.value = String(item.value ?? '');
+            if (item.readOnly) { input.readOnly = true; input.dataset.computed = 'true'; }
+            if (field === 'value') input.inputMode = 'numeric';
+            input.setAttribute('aria-label', `第 ${index + 1} 筆 ${item.label}`);
+            if (field === 'question') input.addEventListener('input', () => {
+              row.querySelector('[data-field="questionType"]').value = questionTypeLabel(questionType(input.value));
+            });
+            cell.append(input); row.append(cell);
+          }
+          body.append(row);
+        });
+      }
+      async function loadTeacherDraft() {
+        setTeacherStatus('正在讀取 ReDraft…');
+        try {
+          const result = await jsonp({action:'teacherDraft', code:state.teacherCode});
+          if (!result?.ok) throw new Error(result?.error || '辨識碼驗證失敗。');
+          renderTeacherRows(result.rows || []);
+          setTeacherStatus(result.rows?.length ? `目前有 ${result.rows.length} 筆草稿，修改後可確認送出。` : 'ReDraft 目前沒有待確認資料。');
+        } catch (error) { setTeacherStatus(error.message, true); }
+      }
+      $('teacher-open').addEventListener('click', () => {
+        $('teacher-panel').classList.remove('hidden'); $('teacher-panel').scrollIntoView({behavior:'smooth', block:'start'}); $('teacher-code').focus();
+      });
+      $('teacher-close').addEventListener('click', () => {
+        state.teacherCode = ''; state.teacherRows = []; $('teacher-code').value = ''; $('teacher-panel').classList.add('hidden');
+        $('teacher-gate').classList.remove('hidden'); $('teacher-review').classList.add('hidden'); $('teacher-refresh').classList.add('hidden'); $('teacher-gate-status').textContent = '';
+      });
+      $('teacher-enter').addEventListener('click', async () => {
+        const code = $('teacher-code').value.trim(); const status = $('teacher-gate-status');
+        if (!code) { status.textContent = '請輸入教師辨識碼。'; return; }
+        $('teacher-enter').disabled = true; status.textContent = '驗證中…';
+        try {
+          const result = await jsonp({action:'verifyTeacher', code});
+          if (!result?.ok) throw new Error(result?.error || '辨識碼不正確。');
+          state.teacherCode = code; $('teacher-gate').classList.add('hidden'); $('teacher-review').classList.remove('hidden'); $('teacher-refresh').classList.remove('hidden');
+          await loadTeacherDraft();
+        } catch (error) { status.textContent = error.message; }
+        finally { $('teacher-enter').disabled = false; }
+      });
+      $('teacher-refresh').addEventListener('click', loadTeacherDraft);
+      $('teacher-promote').addEventListener('click', async () => {
+        const rows = [...$('teacher-rows').rows].map(row => ({original:JSON.parse(row.dataset.original), studentCode:row.querySelector('[data-field="studentCode"]').value.trim(), quiz:row.querySelector('[data-field="quiz"]').value.trim(), question:row.querySelector('[data-field="question"]').value.trim(), value:row.querySelector('[data-field="value"]').value.trim()}));
+        if (!rows.length) { setTeacherStatus('沒有待送出的資料。', true); return; }
+        if (!confirm(`將 ${rows.length} 筆目前畫面中的資料寫入 Record，並在確認成功後清除 ReDraft。要繼續嗎？`)) return;
+        $('teacher-promote').disabled = true; setTeacherStatus('正在送至 Record…');
+        try {
+          const body = new URLSearchParams({payload:JSON.stringify({action:'promote', code:state.teacherCode, confirmed:true, rows})});
+          await fetch(WRITE_ENDPOINT, {method:'POST', mode:'no-cors', body});
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          await loadTeacherDraft();
+          if (!$('teacher-rows').rows.length) setTeacherStatus(`已完成：${rows.length} 筆已送至 Record，ReDraft 已清空。`);
+          else setTeacherStatus('ReDraft 仍有資料。請檢查訊息並重新讀取；沒有清除草稿。', true);
+        } catch (error) { setTeacherStatus(`送出失敗：${error.message}。ReDraft 資料會保留。`, true); }
+        finally { $('teacher-promote').disabled = false; }
+      });
 
       $('student-select').addEventListener('change', event => chooseStudent(event.target.value));
       $('quiz-select').addEventListener('change', event => {
